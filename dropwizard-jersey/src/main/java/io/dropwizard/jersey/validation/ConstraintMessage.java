@@ -97,6 +97,7 @@ public class ConstraintMessage {
                 if (param.getSource().equals(Parameter.Source.UNKNOWN)) {
                     return Optional.of(Joiner.on('.').join(Iterables.skip(violation.getPropertyPath(), 2)));
                 }
+                break;
             default:
                 break;
         }
