@@ -2,7 +2,6 @@ package io.dropwizard.hibernate;
 
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module.Feature;
-import com.google.common.collect.ImmutableList;
 import io.dropwizard.Configuration;
 import io.dropwizard.ConfiguredBundle;
 import io.dropwizard.db.DatabaseConfiguration;
@@ -12,21 +11,34 @@ import io.dropwizard.setup.Environment;
 import io.dropwizard.util.Duration;
 import org.hibernate.SessionFactory;
 
-public abstract class HibernateBundle<T extends Configuration> implements ConfiguredBundle<T>, DatabaseConfiguration<T> {
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static java.util.Objects.requireNonNull;
+
+public abstract class HibernateBundle<T> implements ConfiguredBundle<T>, DatabaseConfiguration<T> {
     public static final String DEFAULT_NAME = "hibernate";
 
+    @Nullable
     private SessionFactory sessionFactory;
     private boolean lazyLoadingEnabled = true;
 
-    private final ImmutableList<Class<?>> entities;
+    private final List<Class<?>> entities;
     private final SessionFactoryFactory sessionFactoryFactory;
 
     protected HibernateBundle(Class<?> entity, Class<?>... entities) {
-        this(ImmutableList.<Class<?>>builder().add(entity).add(entities).build(),
-             new SessionFactoryFactory());
+        final List<Class<?>> entityClasses = new ArrayList<>();
+        entityClasses.add(entity);
+        entityClasses.addAll(Arrays.asList(entities));
+
+        this.entities = Collections.unmodifiableList(entityClasses);
+        this.sessionFactoryFactory = new SessionFactoryFactory();
     }
 
-    protected HibernateBundle(ImmutableList<Class<?>> entities,
+    protected HibernateBundle(List<Class<?>> entities,
                               SessionFactoryFactory sessionFactoryFactory) {
         this.entities = entities;
         this.sessionFactoryFactory = sessionFactoryFactory;
@@ -59,8 +71,9 @@ public abstract class HibernateBundle<T extends Configuration> implements Config
     @Override
     public final void run(T configuration, Environment environment) throws Exception {
         final PooledDataSourceFactory dbConfig = getDataSourceFactory(configuration);
-        this.sessionFactory = sessionFactoryFactory.build(this, environment, dbConfig, entities, name());
-        registerUnitOfWorkListerIfAbsent(environment).registerSessionFactory(name(), sessionFactory);
+        this.sessionFactory = requireNonNull(sessionFactoryFactory.build(this, environment, dbConfig,
+            entities, name()));
+        registerUnitOfWorkListenerIfAbsent(environment).registerSessionFactory(name(), sessionFactory);
         environment.healthChecks().register(name(),
                                             new SessionFactoryHealthCheck(
                                                     environment.getHealthCheckExecutorService(),
@@ -69,7 +82,7 @@ public abstract class HibernateBundle<T extends Configuration> implements Config
                                                     dbConfig.getValidationQuery()));
     }
 
-    private UnitOfWorkApplicationListener registerUnitOfWorkListerIfAbsent(Environment environment) {
+    private UnitOfWorkApplicationListener registerUnitOfWorkListenerIfAbsent(Environment environment) {
         for (Object singleton : environment.jersey().getResourceConfig().getSingletons()) {
             if (singleton instanceof UnitOfWorkApplicationListener) {
                 return (UnitOfWorkApplicationListener) singleton;
@@ -89,7 +102,7 @@ public abstract class HibernateBundle<T extends Configuration> implements Config
     }
 
     public SessionFactory getSessionFactory() {
-        return sessionFactory;
+        return requireNonNull(sessionFactory);
     }
 
     protected void configure(org.hibernate.cfg.Configuration configuration) {

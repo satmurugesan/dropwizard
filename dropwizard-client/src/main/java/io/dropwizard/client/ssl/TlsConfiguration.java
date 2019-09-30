@@ -1,9 +1,9 @@
 package io.dropwizard.client.ssl;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Strings;
+import io.dropwizard.util.Strings;
 import io.dropwizard.validation.ValidationMethod;
-import org.hibernate.validator.constraints.NotEmpty;
+import javax.validation.constraints.NotEmpty;
 
 import javax.annotation.Nullable;
 
@@ -15,19 +15,32 @@ public class TlsConfiguration {
     @NotEmpty
     private String protocol = "TLSv1.2";
 
+    @Nullable
+    private String provider;
+
+    @Nullable
     private File keyStorePath;
 
+    @Nullable
     private String keyStorePassword;
 
     @NotEmpty
     private String keyStoreType = "JKS";
 
+    @Nullable
+    private String keyStoreProvider;
+
+    @Nullable
     private File trustStorePath;
 
+    @Nullable
     private String trustStorePassword;
 
     @NotEmpty
     private String trustStoreType = "JKS";
+
+    @Nullable
+    private String trustStoreProvider;
 
     private boolean trustSelfSignedCertificates = false;
 
@@ -53,6 +66,7 @@ public class TlsConfiguration {
     }
 
     @JsonProperty
+    @Nullable
     public File getKeyStorePath() {
         return keyStorePath;
     }
@@ -63,6 +77,7 @@ public class TlsConfiguration {
     }
 
     @JsonProperty
+    @Nullable
     public String getKeyStorePassword() {
         return keyStorePassword;
     }
@@ -91,8 +106,8 @@ public class TlsConfiguration {
         this.trustStoreType = trustStoreType;
     }
 
-
     @JsonProperty
+    @Nullable
     public File getTrustStorePath() {
         return trustStorePath;
     }
@@ -103,6 +118,7 @@ public class TlsConfiguration {
     }
 
     @JsonProperty
+    @Nullable
     public String getTrustStorePassword() {
         return trustStorePassword;
     }
@@ -130,6 +146,17 @@ public class TlsConfiguration {
     @JsonProperty
     public void setProtocol(String protocol) {
         this.protocol = protocol;
+    }
+
+    @JsonProperty
+    @Nullable
+    public String getProvider() {
+        return provider;
+    }
+
+    @JsonProperty
+    public void setProvider(@Nullable String provider) {
+        this.provider = provider;
     }
 
     @Nullable
@@ -173,5 +200,23 @@ public class TlsConfiguration {
     @ValidationMethod(message = "trustStorePassword should not be null or empty if trustStorePath not null")
     public boolean isValidTrustStorePassword() {
         return trustStorePath == null || trustStoreType.startsWith("Windows-") || !Strings.isNullOrEmpty(trustStorePassword);
+    }
+
+    @Nullable
+    public String getKeyStoreProvider() {
+        return keyStoreProvider;
+    }
+
+    public void setKeyStoreProvider(@Nullable String keyStoreProvider) {
+        this.keyStoreProvider = keyStoreProvider;
+    }
+
+    @Nullable
+    public String getTrustStoreProvider() {
+        return trustStoreProvider;
+    }
+
+    public void setTrustStoreProvider(@Nullable String trustStoreProvider) {
+        this.trustStoreProvider = trustStoreProvider;
     }
 }

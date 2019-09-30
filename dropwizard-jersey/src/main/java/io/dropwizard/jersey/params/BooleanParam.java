@@ -1,17 +1,22 @@
 package io.dropwizard.jersey.params;
 
+import javax.annotation.Nullable;
+
 /**
  * A parameter encapsulating boolean values. If the query parameter value is {@code "true"},
  * regardless of case, the returned value is {@link Boolean#TRUE}. If the query parameter value is
  * {@code "false"}, regardless of case, the returned value is {@link Boolean#FALSE}. All other
  * values will return a {@code 400 Bad Request} response.
+ *
+ * @deprecated As of release 2.0.0, will be removed in 3.0.0. Please use {@link java.util.Optional} instead.
  */
+@Deprecated
 public class BooleanParam extends AbstractParam<Boolean> {
-    public BooleanParam(String input) {
+    public BooleanParam(@Nullable String input) {
         super(input);
     }
 
-    public BooleanParam(String input, String parameterName) {
+    public BooleanParam(@Nullable String input, String parameterName) {
         super(input, parameterName);
     }
 
@@ -21,7 +26,7 @@ public class BooleanParam extends AbstractParam<Boolean> {
     }
 
     @Override
-    protected Boolean parse(String input) throws Exception {
+    protected Boolean parse(@Nullable String input) throws Exception {
         if ("true".equalsIgnoreCase(input)) {
             return Boolean.TRUE;
         }

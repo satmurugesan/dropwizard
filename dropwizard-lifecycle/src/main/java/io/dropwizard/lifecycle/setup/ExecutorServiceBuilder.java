@@ -1,22 +1,25 @@
 package io.dropwizard.lifecycle.setup;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.codahale.metrics.InstrumentedThreadFactory;
 import io.dropwizard.lifecycle.ExecutorServiceManager;
 import io.dropwizard.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Locale;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ExecutorServiceBuilder {
     private static Logger log = LoggerFactory.getLogger(ExecutorServiceBuilder.class);
 
+    private static final AtomicLong COUNT = new AtomicLong(0);
     private final LifecycleEnvironment environment;
     private final String nameFormat;
     private int corePoolSize;
@@ -42,7 +45,17 @@ public class ExecutorServiceBuilder {
     }
 
     public ExecutorServiceBuilder(LifecycleEnvironment environment, String nameFormat) {
-        this(environment, nameFormat, new ThreadFactoryBuilder().setNameFormat(nameFormat).build());
+        this(environment, nameFormat, buildThreadFactory(nameFormat));
+    }
+
+    private static ThreadFactory buildThreadFactory(String nameFormat) {
+        return r -> {
+            final Thread thread = Executors.defaultThreadFactory().newThread(r);
+            if (nameFormat != null) {
+                thread.setName(String.format(Locale.ROOT, nameFormat, COUNT.incrementAndGet()));
+            }
+            return thread;
+        };
     }
 
     public ExecutorServiceBuilder minThreads(int threads) {
@@ -89,12 +102,14 @@ public class ExecutorServiceBuilder {
         if (corePoolSize != maximumPoolSize && maximumPoolSize > 1 && !isBoundedQueue()) {
             log.warn("Parameter 'maximumPoolSize' is conflicting with unbounded work queues");
         }
+        final InstrumentedThreadFactory instrumentedThreadFactory = new InstrumentedThreadFactory(threadFactory,
+            environment.getMetricRegistry(), nameFormat);
         final ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize,
                                                                    maximumPoolSize,
                                                                    keepAliveTime.getQuantity(),
                                                                    keepAliveTime.getUnit(),
                                                                    workQueue,
-                                                                   threadFactory,
+                                                                   instrumentedThreadFactory,
                                                                    handler);
         executor.allowCoreThreadTimeOut(allowCoreThreadTimeOut);
         environment.manage(new ExecutorServiceManager(executor, shutdownTime, nameFormat));
@@ -105,7 +120,6 @@ public class ExecutorServiceBuilder {
         return workQueue.remainingCapacity() != Integer.MAX_VALUE;
     }
 
-    @VisibleForTesting
     static synchronized void setLog(Logger newLog) {
         log = newLog;
     }

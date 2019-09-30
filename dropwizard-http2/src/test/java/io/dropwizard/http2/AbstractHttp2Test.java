@@ -1,13 +1,19 @@
 package io.dropwizard.http2;
 
-import com.google.common.base.Charsets;
 import io.dropwizard.logging.BootstrapLogging;
+import io.dropwizard.testing.ResourceHelpers;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.api.Result;
 import org.eclipse.jetty.client.util.BufferingResponseListener;
 import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.http2.client.HTTP2Client;
+import org.eclipse.jetty.http2.client.http.HttpClientTransportOverHTTP2;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -20,6 +26,24 @@ public class AbstractHttp2Test {
 
     static {
         BootstrapLogging.bootstrap();
+    }
+
+    final SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+    HttpClient client;
+
+    @BeforeEach
+    public void setUp() throws Exception {
+        sslContextFactory.setTrustStorePath(ResourceHelpers.resourceFilePath("stores/http2_client.jts"));
+        sslContextFactory.setTrustStorePassword("http2_client");
+        sslContextFactory.start();
+
+        client = new HttpClient(new HttpClientTransportOverHTTP2(new HTTP2Client()), sslContextFactory);
+        client.start();
+    }
+
+    @AfterEach
+    public void tearDown() throws Exception {
+        client.stop();
     }
 
     protected static void assertResponse(ContentResponse response) {
@@ -38,7 +62,7 @@ public class AbstractHttp2Test {
                         public void onComplete(Result result) {
                             assertThat(result.getResponse().getVersion()).isEqualTo(HttpVersion.HTTP_2);
                             assertThat(result.getResponse().getStatus()).isEqualTo(200);
-                            assertThat(getContentAsString(Charsets.UTF_8)).isEqualTo(FakeApplication.HELLO_WORLD);
+                            assertThat(getContentAsString(StandardCharsets.UTF_8)).isEqualTo(FakeApplication.HELLO_WORLD);
                             latch.countDown();
                         }
                     });

@@ -4,15 +4,16 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.httpclient.HttpClientMetricNameStrategies;
 import com.codahale.metrics.httpclient.HttpClientMetricNameStrategy;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import io.dropwizard.jersey.gzip.ConfiguredGZipEncoder;
 import io.dropwizard.jersey.gzip.GZipDecoder;
 import io.dropwizard.jersey.validation.Validators;
 import io.dropwizard.lifecycle.setup.ExecutorServiceBuilder;
 import io.dropwizard.lifecycle.setup.LifecycleEnvironment;
 import io.dropwizard.setup.Environment;
+import org.apache.http.HttpEntity;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.ServiceUnavailableRetryStrategy;
+import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.DnsResolver;
@@ -21,17 +22,21 @@ import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.SystemDefaultCredentialsProvider;
 import org.apache.http.impl.conn.SystemDefaultDnsResolver;
 import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
-import org.glassfish.jersey.client.rx.RxClient;
-import org.glassfish.jersey.client.rx.java8.RxCompletionStageInvoker;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.glassfish.jersey.client.ClientRequest;
+import org.glassfish.jersey.client.JerseyClient;
+import org.glassfish.jersey.client.rx.rxjava2.RxFlowableInvokerProvider;
+import org.glassfish.jersey.client.spi.ConnectorProvider;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -55,6 +60,7 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -69,15 +75,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class JerseyClientBuilderTest {
-    private final JerseyClientBuilder builder = new JerseyClientBuilder(new MetricRegistry());
-    private final LifecycleEnvironment lifecycleEnvironment = spy(new LifecycleEnvironment());
+    private final MetricRegistry metricRegistry = new MetricRegistry();
+    private final JerseyClientBuilder builder = new JerseyClientBuilder(metricRegistry);
+    private final LifecycleEnvironment lifecycleEnvironment = spy(new LifecycleEnvironment(metricRegistry));
     private final Environment environment = mock(Environment.class);
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final ObjectMapper objectMapper = mock(ObjectMapper.class);
     private final Validator validator = Validators.newValidator();
     private final HttpClientBuilder apacheHttpClientBuilder = mock(HttpClientBuilder.class);
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         when(environment.lifecycle()).thenReturn(lifecycleEnvironment);
         when(environment.getObjectMapper()).thenReturn(objectMapper);
@@ -85,7 +92,7 @@ public class JerseyClientBuilderTest {
         builder.setApacheHttpClientBuilder(apacheHttpClientBuilder);
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         executorService.shutdown();
     }
@@ -154,9 +161,9 @@ public class JerseyClientBuilderTest {
 
     @Test
     public void createsAnRxEnabledClient() throws Exception {
-        final RxClient<RxCompletionStageInvoker> client =
+        final Client client =
             builder.using(executorService, objectMapper)
-                .buildRx("test", RxCompletionStageInvoker.class);
+                .buildRx("test", RxFlowableInvokerProvider.class);
 
         for (Object o : client.getConfiguration().getInstances()) {
             if (o instanceof DropwizardExecutorProvider) {
@@ -191,16 +198,35 @@ public class JerseyClientBuilderTest {
     }
 
     @Test
+    public void createsNewConnectorProvider(){
+        final JerseyClient clientA = (JerseyClient) builder.using(executorService, objectMapper).build("testA");
+        final JerseyClient clientB = (JerseyClient) builder.build("testB");
+        assertThat(clientA.getConfiguration().getConnectorProvider())
+            .isNotSameAs(clientB.getConfiguration().getConnectorProvider());
+    }
+
+    @Test
+    public void usesSameConnectorProvider(){
+        final JerseyClient clientA = (JerseyClient) builder.using(executorService, objectMapper)
+            .using(mock(ConnectorProvider.class))
+            .build("testA");
+        final JerseyClient clientB = (JerseyClient) builder.build("testB");
+
+        assertThat(clientA.getConfiguration().getConnectorProvider())
+            .isSameAs(clientB.getConfiguration().getConnectorProvider());
+    }
+
+    @Test
     public void addBidirectionalGzipSupportIfEnabled() throws Exception {
         final JerseyClientConfiguration configuration = new JerseyClientConfiguration();
         configuration.setGzipEnabled(true);
 
         final Client client = builder.using(configuration)
                 .using(executorService, objectMapper).build("test");
-        assertThat(Iterables.filter(client.getConfiguration().getInstances(), GZipDecoder.class)
-                .iterator().hasNext()).isTrue();
-        assertThat(Iterables.filter(client.getConfiguration().getInstances(), ConfiguredGZipEncoder.class)
-                .iterator().hasNext()).isTrue();
+        assertThat(client.getConfiguration().getInstances())
+                .anyMatch(element -> element instanceof GZipDecoder);
+        assertThat(client.getConfiguration().getInstances())
+                .anyMatch(element -> element instanceof ConfiguredGZipEncoder);
         verify(apacheHttpClientBuilder, never()).disableContentCompression(true);
     }
 
@@ -212,10 +238,10 @@ public class JerseyClientBuilderTest {
         final Client client = builder.using(configuration)
                 .using(executorService, objectMapper).build("test");
 
-        assertThat(Iterables.filter(client.getConfiguration().getInstances(), GZipDecoder.class)
-                .iterator().hasNext()).isFalse();
-        assertThat(Iterables.filter(client.getConfiguration().getInstances(), ConfiguredGZipEncoder.class)
-                .iterator().hasNext()).isFalse();
+        assertThat(client.getConfiguration().getInstances())
+                .noneMatch(element -> element instanceof GZipDecoder);
+        assertThat(client.getConfiguration().getInstances())
+                .noneMatch(element -> element instanceof ConfiguredGZipEncoder);
         verify(apacheHttpClientBuilder).disableContentCompression(true);
     }
 
@@ -273,6 +299,13 @@ public class JerseyClientBuilderTest {
     }
 
     @Test
+    public void usesACustomServiceUnavailableRetryStrategy() {
+        final ServiceUnavailableRetryStrategy customServiceUnavailableRetryStrategy = mock(ServiceUnavailableRetryStrategy.class);
+        builder.using(customServiceUnavailableRetryStrategy);
+        verify(apacheHttpClientBuilder).using(customServiceUnavailableRetryStrategy);
+    }
+
+    @Test
     public void usesACustomConnectionFactoryRegistry() throws Exception {
         final SSLContext ctx = SSLContext.getInstance(SSLConnectionSocketFactory.TLS);
         ctx.init(null, new TrustManager[]{
@@ -287,6 +320,7 @@ public class JerseyClientBuilderTest {
                 }
 
                 @Override
+                @Nullable
                 public X509Certificate[] getAcceptedIssuers() {
                     return null;
                 }
@@ -312,7 +346,7 @@ public class JerseyClientBuilderTest {
         final HttpRoutePlanner customHttpRoutePlanner = new SystemDefaultRoutePlanner(new ProxySelector() {
             @Override
             public List<Proxy> select(URI uri) {
-                return ImmutableList.of(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("192.168.53.12", 8080)));
+                return Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("192.168.53.12", 8080)));
             }
 
             @Override
@@ -331,6 +365,22 @@ public class JerseyClientBuilderTest {
         verify(apacheHttpClientBuilder).using(customCredentialsProvider);
     }
 
+    @Test
+    public void apacheConnectorCanOverridden() {
+        assertThat(new JerseyClientBuilder(new MetricRegistry()) {
+            @Override
+            protected DropwizardApacheConnector createDropwizardApacheConnector(ConfiguredCloseableHttpClient configuredClient) {
+                return new DropwizardApacheConnector(configuredClient.getClient(), configuredClient.getDefaultRequestConfig(),
+                    true) {
+                    @Override
+                    protected HttpEntity getHttpEntity(ClientRequest jerseyRequest) {
+                        return new GzipCompressingEntity(new ByteArrayEntity((byte[]) jerseyRequest.getEntity()));
+                    }
+                };
+            }
+        }.using(environment).build("test")).isNotNull();
+    }
+
     @Provider
     @Consumes(MediaType.APPLICATION_SVG_XML)
     public static class FakeMessageBodyReader implements MessageBodyReader<JerseyClientBuilderTest> {
@@ -340,7 +390,11 @@ public class JerseyClientBuilderTest {
         }
 
         @Override
-        public JerseyClientBuilderTest readFrom(Class<JerseyClientBuilderTest> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, String> httpHeaders, InputStream entityStream) throws IOException, WebApplicationException {
+        @Nullable
+        public JerseyClientBuilderTest readFrom(Class<JerseyClientBuilderTest> type, Type genericType,
+                                                Annotation[] annotations, MediaType mediaType,
+                                                MultivaluedMap<String, String> httpHeaders, InputStream entityStream)
+            throws IOException, WebApplicationException {
             return null;
         }
     }

@@ -1,13 +1,12 @@
 package io.dropwizard.jersey.optional;
 
+import javax.annotation.Nullable;
 import javax.inject.Singleton;
 import javax.ws.rs.ext.ParamConverter;
 import javax.ws.rs.ext.ParamConverterProvider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.OptionalDouble;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 @Singleton
 public class OptionalDoubleParamConverterProvider implements ParamConverterProvider {
@@ -18,6 +17,7 @@ public class OptionalDoubleParamConverterProvider implements ParamConverterProvi
      */
     @Override
     @SuppressWarnings("unchecked")
+    @Nullable
     public <T> ParamConverter<T> getConverter(final Class<T> rawType, final Type genericType,
                                               final Annotation[] annotations) {
         return OptionalDouble.class.equals(rawType) ? (ParamConverter<T>) paramConverter : null;
@@ -26,20 +26,19 @@ public class OptionalDoubleParamConverterProvider implements ParamConverterProvi
     public static class OptionalDoubleParamConverter implements ParamConverter<OptionalDouble> {
         @Override
         public OptionalDouble fromString(final String value) {
-            if (value == null) {
-                return OptionalDouble.empty();
-            }
-
             try {
-                return OptionalDouble.of(Double.parseDouble(value));
+                final double d = Double.parseDouble(value);
+                return OptionalDouble.of(d);
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(e);
+                return OptionalDouble.empty();
             }
         }
 
         @Override
         public String toString(final OptionalDouble value) {
-            checkArgument(value != null);
+            if (value == null) {
+                throw new IllegalArgumentException("value must not be null");
+            }
             return value.isPresent() ? Double.toString(value.getAsDouble()) : "";
         }
     }

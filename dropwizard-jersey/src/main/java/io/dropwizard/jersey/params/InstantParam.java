@@ -1,16 +1,20 @@
 package io.dropwizard.jersey.params;
 
+import javax.annotation.Nullable;
 import java.time.Instant;
 
 /**
  * A parameter encapsulating date/time values. All non-parsable values will return a {@code 400 Bad Request} response.
+ *
+ * @deprecated As of release 2.0.0, will be removed in 3.0.0. Please use {@link java.util.Optional} instead.
  */
+@Deprecated
 public class InstantParam extends AbstractParam<Instant> {
-    public InstantParam(final String input) {
+    public InstantParam(@Nullable final String input) {
         super(input);
     }
 
-    public InstantParam(final String input, final String parameterName) {
+    public InstantParam(@Nullable final String input, final String parameterName) {
         super(input, parameterName);
     }
 
@@ -20,7 +24,7 @@ public class InstantParam extends AbstractParam<Instant> {
     }
 
     @Override
-    protected Instant parse(final String input) throws Exception {
+    protected Instant parse(@Nullable final String input) throws Exception {
         return Instant.parse(input);
     }
 }

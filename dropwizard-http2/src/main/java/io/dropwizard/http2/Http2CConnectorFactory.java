@@ -15,6 +15,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.eclipse.jetty.util.thread.ThreadPool;
 
+import javax.annotation.Nullable;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
@@ -30,7 +31,7 @@ import javax.validation.constraints.Min;
  *     </tr>
  *     <tr>
  *         <td>{@code maxConcurrentStreams}</td>
- *         <td><1024</td>
+ *         <td>1024</td>
  *         <td>
  *             The maximum number of concurrently open streams allowed on a single HTTP/2 connection.
  *             Larger values increase parallelism, but cost a memory commitment.
@@ -81,7 +82,7 @@ public class Http2CConnectorFactory extends HttpConnectorFactory {
     }
 
     @Override
-    public Connector build(Server server, MetricRegistry metrics, String name, ThreadPool threadPool) {
+    public Connector build(Server server, MetricRegistry metrics, String name, @Nullable ThreadPool threadPool) {
 
         // Prepare connection factories for HTTP/2c
         final HttpConfiguration httpConfig = buildHttpConfiguration();

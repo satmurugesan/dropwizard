@@ -1,9 +1,9 @@
 package io.dropwizard.auth;
 
-import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.Priority;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.Priorities;
@@ -13,16 +13,18 @@ import javax.ws.rs.core.SecurityContext;
 import java.security.Principal;
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
+
 @Priority(Priorities.AUTHENTICATION)
 public abstract class AuthFilter<C, P extends Principal> implements ContainerRequestFilter {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-    protected String prefix;
-    protected String realm;
-    protected Authenticator<C, P> authenticator;
-    protected Authorizer<P> authorizer;
-    protected UnauthorizedHandler unauthorizedHandler;
+    protected String prefix =  "Basic";
+    protected String realm = "realm";
+    protected Authenticator<C, P> authenticator = credentials -> Optional.empty();
+    protected Authorizer<P> authorizer = new PermitAllAuthorizer<>();
+    protected UnauthorizedHandler unauthorizedHandler = new DefaultUnauthorizedHandler();
 
     /**
      * Abstract builder for auth filters.
@@ -34,7 +36,7 @@ public abstract class AuthFilter<C, P extends Principal> implements ContainerReq
 
         private String realm = "realm";
         private String prefix = "Basic";
-        private Authenticator<C, P> authenticator;
+        private Authenticator<C, P> authenticator = credentials -> Optional.empty();
         private Authorizer<P> authorizer = new PermitAllAuthorizer<>();
         private UnauthorizedHandler unauthorizedHandler = new DefaultUnauthorizedHandler();
 
@@ -100,11 +102,11 @@ public abstract class AuthFilter<C, P extends Principal> implements ContainerReq
          * @return a new instance of the filter
          */
         public T buildAuthFilter() {
-            Preconditions.checkNotNull(realm, "Realm is not set");
-            Preconditions.checkNotNull(prefix, "Prefix is not set");
-            Preconditions.checkNotNull(authenticator, "Authenticator is not set");
-            Preconditions.checkNotNull(authorizer, "Authorizer is not set");
-            Preconditions.checkNotNull(unauthorizedHandler, "Unauthorized handler is not set");
+            requireNonNull(realm, "Realm is not set");
+            requireNonNull(prefix, "Prefix is not set");
+            requireNonNull(authenticator, "Authenticator is not set");
+            requireNonNull(authorizer, "Authorizer is not set");
+            requireNonNull(unauthorizedHandler, "Unauthorized handler is not set");
 
             final T authFilter = newInstance();
             authFilter.authorizer = authorizer;
@@ -127,7 +129,7 @@ public abstract class AuthFilter<C, P extends Principal> implements ContainerReq
      *                       See {@link SecurityContext}
      * @return {@code true}, if the request is authenticated, otherwise {@code false}
      */
-    protected boolean authenticate(ContainerRequestContext requestContext, C credentials, String scheme) {
+    protected boolean authenticate(ContainerRequestContext requestContext, @Nullable C credentials, String scheme) {
         try {
             if (credentials == null) {
                 return false;
@@ -138,18 +140,19 @@ public abstract class AuthFilter<C, P extends Principal> implements ContainerReq
                 return false;
             }
 
+            final P prince = principal.get();
             final SecurityContext securityContext = requestContext.getSecurityContext();
             final boolean secure = securityContext != null && securityContext.isSecure();
 
             requestContext.setSecurityContext(new SecurityContext() {
                 @Override
                 public Principal getUserPrincipal() {
-                    return principal.get();
+                    return prince;
                 }
 
                 @Override
                 public boolean isUserInRole(String role) {
-                    return authorizer.authorize(principal.get(), role);
+                    return authorizer.authorize(prince, role, requestContext);
                 }
 
                 @Override

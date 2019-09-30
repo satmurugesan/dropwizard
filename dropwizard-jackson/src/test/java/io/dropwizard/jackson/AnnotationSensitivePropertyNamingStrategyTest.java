@@ -3,17 +3,20 @@ package io.dropwizard.jackson;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class AnnotationSensitivePropertyNamingStrategyTest {
     public static class RegularExample {
         @JsonProperty
+        @Nullable
         String firstName;
 
-        @SuppressWarnings("UnusedDeclaration") // Jackson
+        @SuppressWarnings({ "UnusedDeclaration", "unused" }) // Jackson
         private RegularExample() {}
 
         public RegularExample(String firstName) {
@@ -24,9 +27,10 @@ public class AnnotationSensitivePropertyNamingStrategyTest {
     @JsonSnakeCase
     public static class SnakeCaseExample {
         @JsonProperty
+        @Nullable
         String firstName;
 
-        @SuppressWarnings("UnusedDeclaration") // Jackson
+        @SuppressWarnings({ "UnusedDeclaration", "unused" }) // Jackson
         private SnakeCaseExample() {}
 
         public SnakeCaseExample(String firstName) {
@@ -37,7 +41,7 @@ public class AnnotationSensitivePropertyNamingStrategyTest {
     private final PropertyNamingStrategy strategy = new AnnotationSensitivePropertyNamingStrategy();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         mapper.setPropertyNamingStrategy(strategy);
     }

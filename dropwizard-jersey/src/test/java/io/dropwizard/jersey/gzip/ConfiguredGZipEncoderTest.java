@@ -1,7 +1,8 @@
 package io.dropwizard.jersey.gzip;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.core.HttpHeaders;
@@ -16,13 +17,9 @@ import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.zip.GZIPOutputStream;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 
 public class ConfiguredGZipEncoderTest {
     @Test
@@ -35,7 +32,7 @@ public class ConfiguredGZipEncoderTest {
 
         new ConfiguredGZipEncoder(true).filter(context);
 
-        assertThat(headers.getFirst(HttpHeaders.CONTENT_ENCODING).toString(), is("gzip"));
+        assertThat(headers.getFirst(HttpHeaders.CONTENT_ENCODING).toString()).isEqualTo("gzip");
     }
 
     @Test
@@ -44,8 +41,8 @@ public class ConfiguredGZipEncoderTest {
         headers.add(HttpHeaders.CONTENT_ENCODING, "gzip");
         WriterInterceptorContextMock context = new WriterInterceptorContextMock(headers);
         new ConfiguredGZipEncoder(true).aroundWriteTo(context);
-        assertThat(context.getOutputStream(), is(instanceOf(GZIPOutputStream.class)));
-        assertThat(context.isProceedCalled(), is(true));
+        assertThat(context.getOutputStream()).isInstanceOf(GZIPOutputStream.class);
+        assertThat(context.isProceedCalled()).isTrue();
     }
     @Test
     public void aroundWriteToSpecX_GZip() throws IOException, WebApplicationException {
@@ -53,8 +50,8 @@ public class ConfiguredGZipEncoderTest {
         headers.add(HttpHeaders.CONTENT_ENCODING, "x-gzip");
         WriterInterceptorContextMock context = new WriterInterceptorContextMock(headers);
         new ConfiguredGZipEncoder(true).aroundWriteTo(context);
-        assertThat(context.getOutputStream(), is(instanceOf(GZIPOutputStream.class)));
-        assertThat(context.isProceedCalled(), is(true));
+        assertThat(context.getOutputStream()).isInstanceOf(GZIPOutputStream.class);
+        assertThat(context.isProceedCalled()).isTrue();
     }
     @Test
     public void otherEncodingWillNotAroundWrite() throws IOException, WebApplicationException {
@@ -62,8 +59,8 @@ public class ConfiguredGZipEncoderTest {
         headers.add(HttpHeaders.CONTENT_ENCODING, "someOtherEnc");
         WriterInterceptorContextMock context = new WriterInterceptorContextMock(headers);
         new ConfiguredGZipEncoder(true).aroundWriteTo(context);
-        assertThat(context.getOutputStream(), is(not(instanceOf(GZIPOutputStream.class))));
-        assertThat(context.isProceedCalled(), is(true));
+        assertThat(context.getOutputStream()).isNotInstanceOf(GZIPOutputStream.class);
+        assertThat(context.isProceedCalled()).isTrue();
     }
     @Test
     public void noEncodingwillNotAroundWrite() throws IOException, WebApplicationException {
@@ -71,19 +68,11 @@ public class ConfiguredGZipEncoderTest {
         headers.add(HttpHeaders.CONTENT_ENCODING, null);
         WriterInterceptorContextMock context = new WriterInterceptorContextMock(headers);
         new ConfiguredGZipEncoder(true).aroundWriteTo(context);
-        assertThat(context.getOutputStream(), is(not(instanceOf(GZIPOutputStream.class))));
-        assertThat(context.isProceedCalled(), is(true));
+        assertThat(context.getOutputStream()).isNotInstanceOf(GZIPOutputStream.class);
+        assertThat(context.isProceedCalled()).isTrue();
     }
 
-
-    @Test(expected = NullPointerException.class)
-    public void contextMayNotBeNull() throws IOException {
-        ClientRequestContext context = null;
-        new ConfiguredGZipEncoder(false).filter(context);
-    }
-
-
-    private class WriterInterceptorContextMock implements WriterInterceptorContext {
+    private static class WriterInterceptorContextMock implements WriterInterceptorContext {
         private final MultivaluedMap<String, Object> headers;
         private OutputStream os = new OutputStream() {
             @Override
@@ -103,6 +92,7 @@ public class ConfiguredGZipEncoderTest {
         }
 
         @Override
+        @Nullable
         public Object getEntity() {
             return null;
         }
@@ -128,11 +118,13 @@ public class ConfiguredGZipEncoderTest {
         }
 
         @Override
+        @Nullable
         public Object getProperty(String name) {
             return null;
         }
 
         @Override
+        @Nullable
         public Collection<String> getPropertyNames() {
             return null;
         }
@@ -158,6 +150,7 @@ public class ConfiguredGZipEncoderTest {
         }
 
         @Override
+        @Nullable
         public Class<?> getType() {
             return null;
         }
@@ -168,6 +161,7 @@ public class ConfiguredGZipEncoderTest {
         }
 
         @Override
+        @Nullable
         public Type getGenericType() {
             return null;
         }
@@ -178,6 +172,7 @@ public class ConfiguredGZipEncoderTest {
         }
 
         @Override
+        @Nullable
         public MediaType getMediaType() {
             return null;
         }

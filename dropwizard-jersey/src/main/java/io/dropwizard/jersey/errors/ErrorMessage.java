@@ -3,14 +3,16 @@ package io.dropwizard.jersey.errors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.MoreObjects;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ErrorMessage {
     private final int code;
     private final String message;
+
+    @Nullable
     private final String details;
 
     public ErrorMessage(String message) {
@@ -23,7 +25,7 @@ public class ErrorMessage {
 
     @JsonCreator
     public ErrorMessage(@JsonProperty("code") int code, @JsonProperty("message") String message,
-                        @JsonProperty("details") String details) {
+                        @Nullable @JsonProperty("details") String details) {
         this.code = code;
         this.message = message;
         this.details = details;
@@ -40,6 +42,7 @@ public class ErrorMessage {
     }
 
     @JsonProperty("details")
+    @Nullable
     public String getDetails() {
         return details;
     }
@@ -66,7 +69,6 @@ public class ErrorMessage {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("code", code)
-                .add("message", message).add("details", details).toString();
+        return "ErrorMessage{code=" + code + ", message='" + message + "', details='" + details + "'}";
     }
 }

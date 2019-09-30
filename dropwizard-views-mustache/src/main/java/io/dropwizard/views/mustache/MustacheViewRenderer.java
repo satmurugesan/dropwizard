@@ -1,13 +1,12 @@
 package io.dropwizard.views.mustache;
 
+import com.github.benmanes.caffeine.cache.CacheLoader;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
 import com.github.mustachejava.resolver.FileSystemResolver;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import io.dropwizard.views.View;
 import io.dropwizard.views.ViewRenderException;
 import io.dropwizard.views.ViewRenderer;
@@ -21,17 +20,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * A {@link ViewRenderer} which renders Mustache ({@code .mustache}) templates.
  */
 public class MustacheViewRenderer implements ViewRenderer {
+    private static final Pattern FILE_PATTERN = Pattern.compile("\\.mustache");
     private final LoadingCache<Class<? extends View>, MustacheFactory> factories;
     private boolean useCache = true;
     private Optional<File> fileRoot = Optional.empty();
 
     public MustacheViewRenderer() {
-        this.factories = CacheBuilder.newBuilder().build(new CacheLoader<Class<? extends View>, MustacheFactory>() {
+        this.factories = Caffeine.newBuilder().build(new CacheLoader<Class<? extends View>, MustacheFactory>() {
             @Override
             public MustacheFactory load(Class<? extends View> key) throws Exception {
                 return createNewMustacheFactory(key);
@@ -41,7 +42,7 @@ public class MustacheViewRenderer implements ViewRenderer {
 
     @Override
     public boolean isRenderable(View view) {
-        return view.getTemplateName().endsWith(getSuffix());
+        return FILE_PATTERN.matcher(view.getTemplateName()).find();
     }
 
     @Override
@@ -65,14 +66,13 @@ public class MustacheViewRenderer implements ViewRenderer {
         fileRoot = Optional.ofNullable(options.get("fileRoot")).map(File::new);
     }
 
-    @VisibleForTesting
     boolean isUseCache() {
         return useCache;
     }
 
     @Override
-    public String getSuffix() {
-        return ".mustache";
+    public String getConfigurationKey() {
+        return "mustache";
     }
 
     private MustacheFactory createNewMustacheFactory(Class<? extends View> key) {

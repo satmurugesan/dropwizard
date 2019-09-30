@@ -5,7 +5,6 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.health.HealthCheckRegistry;
 import com.codahale.metrics.health.SharedHealthCheckRegistries;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.dropwizard.jersey.DropwizardResourceConfig;
 import io.dropwizard.jersey.setup.JerseyContainerHolder;
 import io.dropwizard.jersey.setup.JerseyEnvironment;
@@ -13,11 +12,15 @@ import io.dropwizard.jersey.setup.JerseyServletContainer;
 import io.dropwizard.jetty.MutableServletContextHandler;
 import io.dropwizard.jetty.setup.ServletEnvironment;
 import io.dropwizard.lifecycle.setup.LifecycleEnvironment;
+import io.dropwizard.validation.InjectValidatorFeature;
 
+import javax.annotation.Nullable;
 import javax.servlet.Servlet;
 import javax.validation.Validator;
+import javax.validation.ValidatorFactory;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import static java.util.Objects.requireNonNull;
@@ -56,7 +59,7 @@ public class Environment {
                        ObjectMapper objectMapper,
                        Validator validator,
                        MetricRegistry metricRegistry,
-                       ClassLoader classLoader,
+                       @Nullable ClassLoader classLoader,
                        HealthCheckRegistry healthCheckRegistry) {
         this.name = name;
         this.objectMapper = objectMapper;
@@ -70,11 +73,13 @@ public class Environment {
 
         this.adminContext = new MutableServletContextHandler();
         adminContext.setClassLoader(classLoader);
+
         this.adminEnvironment = new AdminEnvironment(adminContext, healthCheckRegistry, metricRegistry);
 
-        this.lifecycleEnvironment = new LifecycleEnvironment();
+        this.lifecycleEnvironment = new LifecycleEnvironment(metricRegistry);
 
         final DropwizardResourceConfig jerseyConfig = new DropwizardResourceConfig(metricRegistry);
+        jerseyConfig.setContextPath(servletContext.getContextPath());
 
         this.jerseyServletContainer = new JerseyContainerHolder(new JerseyServletContainer(jerseyConfig));
         this.jerseyEnvironment = new JerseyEnvironment(jerseyServletContainer, jerseyConfig);
@@ -84,20 +89,39 @@ public class Environment {
                 .workQueue(new ArrayBlockingQueue<>(1))
                 .minThreads(1)
                 .maxThreads(4)
-                .threadFactory(new ThreadFactoryBuilder().setDaemon(true).build())
+                .threadFactory(r -> {
+                    final Thread thread = Executors.defaultThreadFactory().newThread(r);
+                    thread.setDaemon(true);
+                    return thread;
+                })
                 .rejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy())
                 .build();
 
+        // Set the default metric registry to the one in this environment, if
+        // the default isn't already set. If a default is already registered,
+        // ignore the exception.
         try {
-            SharedMetricRegistries.getDefault();
-        } catch (IllegalStateException e) {
             SharedMetricRegistries.setDefault("default", metricRegistry);
+        } catch (IllegalStateException ignored) {
         }
+
         try {
-            SharedHealthCheckRegistries.getDefault();
-        } catch (IllegalStateException e) {
             SharedHealthCheckRegistries.setDefault("default", healthCheckRegistry);
+        } catch (IllegalStateException ignored) {
         }
+    }
+
+    /**
+     * Creates an environment and enables injecting validator feature.
+     */
+    public Environment(String name,
+                       ObjectMapper objectMapper,
+                       ValidatorFactory validatorFactory,
+                       MetricRegistry metricRegistry,
+                       @Nullable ClassLoader classLoader,
+                       HealthCheckRegistry healthCheckRegistry) {
+        this(name, objectMapper, validatorFactory.getValidator(), metricRegistry, classLoader, healthCheckRegistry);
+        this.jerseyEnvironment.register(new InjectValidatorFeature(validatorFactory));
     }
 
     /**
@@ -107,7 +131,7 @@ public class Environment {
                        ObjectMapper objectMapper,
                        Validator validator,
                        MetricRegistry metricRegistry,
-                       ClassLoader classLoader) {
+                       @Nullable ClassLoader classLoader) {
         this(name, objectMapper, validator, metricRegistry, classLoader, new HealthCheckRegistry());
     }
 
@@ -196,6 +220,7 @@ public class Environment {
         return servletContext;
     }
 
+    @Nullable
     public Servlet getJerseyServletContainer() {
         return jerseyServletContainer.getContainer();
     }

@@ -1,13 +1,13 @@
 package io.dropwizard;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.MoreObjects;
 import io.dropwizard.logging.DefaultLoggingFactory;
 import io.dropwizard.logging.LoggingFactory;
 import io.dropwizard.metrics.MetricsFactory;
 import io.dropwizard.server.DefaultServerFactory;
 import io.dropwizard.server.ServerFactory;
 
+import javax.annotation.Nullable;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
@@ -65,6 +65,7 @@ public class Configuration {
     private ServerFactory server = new DefaultServerFactory();
 
     @Valid
+    @Nullable
     private LoggingFactory logging;
 
     @Valid
@@ -123,10 +124,6 @@ public class Configuration {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("server", server)
-            .add("logging", logging)
-            .add("metrics", metrics)
-            .toString();
+        return "Configuration{server=" + server + ", logging=" + logging + ", metrics=" + metrics + "}";
     }
 }

@@ -2,17 +2,24 @@ package io.dropwizard.jersey.params;
 
 import io.dropwizard.util.Duration;
 
+import javax.annotation.Nullable;
+
+import static java.util.Objects.requireNonNull;
+
 /**
  * A parameter encapsulating duration values. All non-parsable values will return a {@code 400 Bad
  * Request} response. Supports all input formats the {@link Duration} class supports.
+ *
+ * @deprecated As of release 2.0.0, will be removed in 3.0.0. Please use {@link java.util.Optional} instead.
  */
+@Deprecated
 public class DurationParam extends AbstractParam<Duration> {
 
-    public DurationParam(String input) {
+    public DurationParam(@Nullable String input) {
         super(input);
     }
 
-    public DurationParam(String input, String parameterName) {
+    public DurationParam(@Nullable String input, String parameterName) {
         super(input, parameterName);
     }
 
@@ -22,8 +29,8 @@ public class DurationParam extends AbstractParam<Duration> {
     }
 
     @Override
-    protected Duration parse(String input) throws Exception {
-        return Duration.parse(input);
+    protected Duration parse(@Nullable String input) throws Exception {
+        return Duration.parse(requireNonNull(input));
     }
 
 }

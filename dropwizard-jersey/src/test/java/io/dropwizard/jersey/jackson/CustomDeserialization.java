@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
@@ -13,9 +14,10 @@ import java.io.IOException;
  * propagation, but it won't stop someone who'll do anything to get an unexpected null pointer
  * exception somewhere.
  */
+@SuppressWarnings("serial")
 public class CustomDeserialization extends StdDeserializer<CustomRepresentation> {
     public CustomDeserialization() {
-        super((Class) null);
+        super((Class<?>) null);
     }
 
     @Override
@@ -41,6 +43,7 @@ public class CustomDeserialization extends StdDeserializer<CustomRepresentation>
         }
 
         @Override
+        @Nullable
         public String getMessage() {
             return null;
         }

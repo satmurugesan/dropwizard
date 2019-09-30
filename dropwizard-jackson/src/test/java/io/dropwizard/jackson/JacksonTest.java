@@ -2,14 +2,16 @@ package io.dropwizard.jackson;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatCode;
 
 public class JacksonTest {
     @Test
@@ -45,8 +47,17 @@ public class JacksonTest {
         assertThat(mapper.writeValueAsString(pojo)).isEqualTo(json);
     }
 
+    @Test
+    public void objectMapperIgnoresUnknownProperties() {
+        assertThatCode(() ->
+            Jackson.newObjectMapper()
+                .readValue("{\"unknown\": 4711, \"path\": \"/var/log/app/server.log\"}", LogMetadata.class)
+        ).doesNotThrowAnyException();
+    }
+
     static class LogMetadata {
 
+        @Nullable
         public Path path;
     }
 

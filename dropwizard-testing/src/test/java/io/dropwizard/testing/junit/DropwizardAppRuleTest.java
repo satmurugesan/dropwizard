@@ -1,67 +1,59 @@
 package io.dropwizard.testing.junit;
 
-import com.google.common.collect.ImmutableCollection;
-import com.google.common.collect.ImmutableMultimap;
-import io.dropwizard.Application;
-import io.dropwizard.servlets.tasks.PostBodyTask;
-import io.dropwizard.servlets.tasks.Task;
 import io.dropwizard.setup.Environment;
+import io.dropwizard.testing.app.DropwizardTestApplication;
+import io.dropwizard.testing.app.TestConfiguration;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
-import java.io.PrintWriter;
 
 import static io.dropwizard.testing.ResourceHelpers.resourceFilePath;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DropwizardAppRuleTest {
-
+    @SuppressWarnings("deprecation")
     @ClassRule
     public static final DropwizardAppRule<TestConfiguration> RULE =
-            new DropwizardAppRule<>(TestApplication.class, resourceFilePath("test-config.yaml"));
+        new DropwizardAppRule<>(DropwizardTestApplication.class, resourceFilePath("test-config.yaml"));
 
     @Test
     public void canGetExpectedResourceOverHttp() {
         final String content = ClientBuilder.newClient().target(
             "http://localhost:" + RULE.getLocalPort() + "/test").request().get(String.class);
 
-        assertThat(content, is("Yes, it's here"));
+        assertThat(content).isEqualTo("Yes, it's here");
     }
 
     @Test
     public void returnsConfiguration() {
         final TestConfiguration config = RULE.getConfiguration();
-        assertThat(config.getMessage(), is("Yes, it's here"));
+        assertThat(config.getMessage()).isEqualTo("Yes, it's here");
     }
 
     @Test
     public void returnsApplication() {
-        final TestApplication application = RULE.getApplication();
-        assertNotNull(application);
+        final DropwizardTestApplication application = RULE.getApplication();
+        assertThat(application).isNotNull();
     }
 
     @Test
     public void returnsEnvironment() {
         final Environment environment = RULE.getEnvironment();
-        assertThat(environment.getName(), is("TestApplication"));
+        assertThat(environment.getName()).isEqualTo("DropwizardTestApplication");
     }
 
     @Test
     public void canPerformAdminTask() {
         final String response
-                = RULE.client().target("http://localhost:"
-                        + RULE.getAdminPort() + "/tasks/hello?name=test_user")
-                .request()
-                .post(Entity.entity("", MediaType.TEXT_PLAIN), String.class);
+            = RULE.client().target("http://localhost:"
+            + RULE.getAdminPort() + "/tasks/hello?name=test_user")
+            .request()
+            .post(Entity.entity("", MediaType.TEXT_PLAIN), String.class);
 
-        assertThat(response, is("Hello has been said to test_user"));
+        assertThat(response).isEqualTo("Hello has been said to test_user");
     }
 
     @Test
@@ -72,59 +64,22 @@ public class DropwizardAppRuleTest {
             .request()
             .post(Entity.entity("Custom message", MediaType.TEXT_PLAIN), String.class);
 
-        assertThat(response, is("Custom message"));
+        assertThat(response).isEqualTo("Custom message");
     }
 
-    public static class TestApplication extends Application<TestConfiguration> {
-        @Override
-        public void run(TestConfiguration configuration, Environment environment) throws Exception {
-            environment.jersey().register(new TestResource(configuration.getMessage()));
-            environment.admin().addTask(new HelloTask());
-            environment.admin().addTask(new EchoTask());
-        }
+    @Test
+    public void clientUsesJacksonMapperFromEnvironment() {
+        assertThat(RULE.client().target("http://localhost:" + RULE.getLocalPort() + "/message")
+            .request()
+            .get(DropwizardTestApplication.MessageView.class).getMessage())
+            .contains("Yes, it's here");
     }
 
-    @Path("/")
-    public static class TestResource {
-
-        private final String message;
-
-        public TestResource(String message) {
-            this.message = message;
-        }
-
-        @Path("test")
-        @GET
-        public String test() {
-            return message;
-        }
-    }
-
-    public static class HelloTask extends Task {
-
-        public HelloTask() {
-            super("hello");
-        }
-
-        @Override
-        public void execute(ImmutableMultimap<String, String> parameters, PrintWriter output) throws Exception {
-            ImmutableCollection<String> names = parameters.get("name");
-            String name = !names.isEmpty() ? names.asList().get(0) : "Anonymous";
-            output.print("Hello has been said to " + name);
-            output.flush();
-        }
-    }
-
-    public static class EchoTask extends PostBodyTask {
-
-        public EchoTask() {
-            super("echo");
-        }
-
-        @Override
-        public void execute(ImmutableMultimap<String, String> parameters, String body, PrintWriter output) throws Exception {
-            output.print(body);
-            output.flush();
-        }
+    @Test
+    public void clientSupportsPatchMethod() {
+        assertThat(RULE.client().target("http://localhost:" + RULE.getLocalPort() + "/echoPatch")
+            .request()
+            .method("PATCH", Entity.text("Patch is working"), String.class))
+            .contains("Patch is working");
     }
 }

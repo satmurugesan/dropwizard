@@ -1,34 +1,40 @@
 package io.dropwizard.lifecycle.setup;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import com.codahale.metrics.InstrumentedThreadFactory;
+import com.codahale.metrics.MetricRegistry;
+import io.dropwizard.lifecycle.ExecutorServiceManager;
+import io.dropwizard.util.Duration;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
+import javax.annotation.Nullable;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.After;
-import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-
-import io.dropwizard.lifecycle.ExecutorServiceManager;
-import io.dropwizard.util.Duration;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class ScheduledExecutorServiceBuilderTest {
 
     private static final Duration DEFAULT_SHUTDOWN_PERIOD = Duration.seconds(5L);
 
     private final LifecycleEnvironment le;
+
+    @Nullable
     private ScheduledExecutorService execTracker;
 
     public ScheduledExecutorServiceBuilderTest() {
         this.execTracker = null;
         this.le = mock(LifecycleEnvironment.class);
+        when(le.getMetricRegistry()).thenReturn(new MetricRegistry());
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         if (this.execTracker != null) {
             this.execTracker.shutdownNow();
@@ -59,6 +65,7 @@ public class ScheduledExecutorServiceBuilderTest {
 
         final ScheduledThreadPoolExecutor castedExec = (ScheduledThreadPoolExecutor) this.execTracker;
         assertThat(castedExec.getRemoveOnCancelPolicy()).isFalse();
+        assertThat(castedExec.getThreadFactory()).isInstanceOf(InstrumentedThreadFactory.class);
 
         final ArgumentCaptor<ExecutorServiceManager> esmCaptor = ArgumentCaptor.forClass(ExecutorServiceManager.class);
         verify(this.le).manage(esmCaptor.capture());
@@ -129,7 +136,7 @@ public class ScheduledExecutorServiceBuilderTest {
 
         final ScheduledThreadPoolExecutor castedExec = (ScheduledThreadPoolExecutor) this.execTracker;
         assertThat(castedExec.getRemoveOnCancelPolicy()).isFalse();
-        assertThat(castedExec.getThreadFactory()).isSameAs(tfactory);
+        assertThat(castedExec.getThreadFactory()).isInstanceOf(InstrumentedThreadFactory.class);
 
         final ArgumentCaptor<ExecutorServiceManager> esmCaptor = ArgumentCaptor.forClass(ExecutorServiceManager.class);
         verify(this.le).manage(esmCaptor.capture());

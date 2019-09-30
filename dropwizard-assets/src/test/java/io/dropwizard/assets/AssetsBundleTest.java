@@ -1,12 +1,13 @@
 package io.dropwizard.assets;
 
-import com.google.common.io.Resources;
+import io.dropwizard.Configuration;
 import io.dropwizard.jetty.setup.ServletEnvironment;
 import io.dropwizard.servlets.assets.AssetServlet;
 import io.dropwizard.servlets.assets.ResourceURL;
 import io.dropwizard.setup.Environment;
-import org.junit.Before;
-import org.junit.Test;
+import io.dropwizard.util.Resources;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import javax.servlet.ServletRegistration;
@@ -24,10 +25,10 @@ public class AssetsBundleTest {
     private final ServletEnvironment servletEnvironment = mock(ServletEnvironment.class);
     private final Environment environment = mock(Environment.class);
 
-    private AssetServlet servlet;
-    private String servletPath;
+    private AssetServlet servlet = new AssetServlet("/", "/", null, null);
+    private String servletPath = "";
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         when(environment.servlets()).thenReturn(servletEnvironment);
     }
@@ -142,7 +143,7 @@ public class AssetsBundleTest {
         final ServletRegistration.Dynamic registration = mock(ServletRegistration.Dynamic.class);
         when(servletEnvironment.addServlet(anyString(), any(AssetServlet.class))).thenReturn(registration);
 
-        bundle.run(environment);
+        bundle.run(new Configuration(), environment);
 
         final ArgumentCaptor<AssetServlet> servletCaptor = ArgumentCaptor.forClass(AssetServlet.class);
         final ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);

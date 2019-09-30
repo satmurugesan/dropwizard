@@ -1,11 +1,11 @@
 package io.dropwizard.validation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.hibernate.validator.constraints.NotEmpty;
+import javax.validation.constraints.NotEmpty;
 
 public class ConstraintPerson {
     @NotEmpty
-    private String name;
+    private String name = "";
 
     @JsonProperty
     public String getName() {

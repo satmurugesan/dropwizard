@@ -57,14 +57,14 @@ server, for example), Dropwizard provides a decorator class which provides cachi
                                metricRegistry, simpleAuthenticator,
                                config.getAuthenticationCachePolicy());
 
-Dropwizard can parse Guava's ``CacheBuilderSpec`` from the configuration policy, allowing your
+Dropwizard can parse Caffeine's ``CaffeineSpec`` from the configuration policy, allowing your
 configuration file to look like this:
 
 .. code-block:: yaml
 
     authenticationCachePolicy: maximumSize=10000, expireAfterAccess=10m
 
-This caches up to 10,000 principals with an LRU policy, evicting stale entries after 10 minutes.
+This caches up to 10,000 principals, evicting stale entries after 10 minutes.
 
 .. _man-auth-authorizer:
 
@@ -376,6 +376,9 @@ Note that with the above example, only *authentication* is configured. If you al
 * Register the ``RolesAllowedDynamicFeature`` with the application.
 
 * Make sure you add ``Authorizers`` when you build your ``AuthFilters``.
+
+* Make sure any custom ``AuthFilter`` you add has the ``@Priority(Priorities.AUTHENTICATION)`` annotation set
+  (otherwise authorization will be tested before the request's security context is properly set and will fail).
 
 * Annotate the resource *method* with the authorization annotation. Unlike the note earlier in
   this document that says authorization annotations are allowed on classes, with this

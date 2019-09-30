@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.dropwizard.client.proxy.ProxyConfiguration;
 import io.dropwizard.client.ssl.TlsConfiguration;
 import io.dropwizard.util.Duration;
-import org.hibernate.validator.valuehandling.UnwrapValidatedValue;
 
 import javax.annotation.Nullable;
 import javax.validation.Valid;
@@ -33,6 +32,8 @@ public class HttpClientConfiguration {
 
     private boolean cookiesEnabled = false;
 
+    private boolean normalizeUriEnabled = true;
+
     @Min(1)
     @Max(Integer.MAX_VALUE)
     private int maxConnections = 1024;
@@ -49,7 +50,6 @@ public class HttpClientConfiguration {
     private int retries = 0;
 
     @NotNull
-    @UnwrapValidatedValue(false)
     private Optional<String> userAgent = Optional.empty();
 
     @Valid
@@ -133,6 +133,16 @@ public class HttpClientConfiguration {
     }
 
     @JsonProperty
+    public boolean isNormalizeUriEnabled() {
+        return normalizeUriEnabled;
+    }
+
+    @JsonProperty
+    public void setNormalizeUriEnabled(final boolean normalizeUriEnabled) {
+        this.normalizeUriEnabled = normalizeUriEnabled;
+    }
+
+    @JsonProperty
     public int getMaxConnections() {
         return maxConnections;
     }
@@ -163,6 +173,7 @@ public class HttpClientConfiguration {
     }
 
     @JsonProperty("proxy")
+    @Nullable
     public ProxyConfiguration getProxyConfiguration() {
         return proxyConfiguration;
     }
@@ -183,6 +194,7 @@ public class HttpClientConfiguration {
     }
 
     @JsonProperty("tls")
+    @Nullable
     public TlsConfiguration getTlsConfiguration() {
         return tlsConfiguration;
     }

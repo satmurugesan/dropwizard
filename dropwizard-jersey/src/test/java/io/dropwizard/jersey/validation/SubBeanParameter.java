@@ -1,9 +1,9 @@
 package io.dropwizard.jersey.validation;
 
 import io.dropwizard.jersey.jackson.JacksonMessageBodyProviderTest;
+import io.dropwizard.util.Strings;
 import io.dropwizard.validation.ValidationMethod;
-import org.assertj.core.util.Strings;
-import org.hibernate.validator.constraints.NotEmpty;
+import javax.validation.constraints.NotEmpty;
 
 import javax.ws.rs.QueryParam;
 import java.util.Locale;
@@ -11,7 +11,7 @@ import java.util.Locale;
 public class SubBeanParameter extends BeanParameter {
     @QueryParam("address")
     @NotEmpty
-    private String address;
+    private String address = "";
 
 
     @ValidationMethod(message = "address must not be uppercase",

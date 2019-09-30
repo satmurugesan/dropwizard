@@ -3,7 +3,7 @@ package io.dropwizard.client.proxy;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.dropwizard.validation.OneOf;
 import io.dropwizard.validation.PortRange;
-import org.hibernate.validator.constraints.NotEmpty;
+import javax.validation.constraints.NotEmpty;
 
 import javax.annotation.Nullable;
 import javax.validation.Valid;
@@ -57,7 +57,7 @@ import java.util.List;
 public class ProxyConfiguration {
 
     @NotEmpty
-    private String host;
+    private String host = "";
 
     @PortRange(min = -1)
     private Integer port = -1;
@@ -121,6 +121,7 @@ public class ProxyConfiguration {
     }
 
     @JsonProperty
+    @Nullable
     public List<String> getNonProxyHosts() {
         return nonProxyHosts;
     }
@@ -130,6 +131,7 @@ public class ProxyConfiguration {
         this.nonProxyHosts = nonProxyHosts;
     }
 
+    @Nullable
     public AuthConfiguration getAuth() {
         return auth;
     }

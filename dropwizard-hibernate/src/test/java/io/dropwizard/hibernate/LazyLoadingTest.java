@@ -1,7 +1,6 @@
 package io.dropwizard.hibernate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
 import io.dropwizard.Application;
 import io.dropwizard.Configuration;
 import io.dropwizard.db.DataSourceFactory;
@@ -12,6 +11,7 @@ import io.dropwizard.setup.Environment;
 import io.dropwizard.testing.ConfigOverride;
 import io.dropwizard.testing.DropwizardTestSupport;
 import io.dropwizard.testing.ResourceHelpers;
+import io.dropwizard.util.Strings;
 import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.hibernate.FlushMode;
 import org.hibernate.HibernateException;
@@ -19,24 +19,26 @@ import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.exception.ConstraintViolationException;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.PUT;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
+import java.util.Arrays;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 public class LazyLoadingTest {
 
@@ -51,7 +53,7 @@ public class LazyLoadingTest {
 
     public static class TestApplication extends io.dropwizard.Application<TestConfiguration> {
         final HibernateBundle<TestConfiguration> hibernate = new HibernateBundle<TestConfiguration>(
-            ImmutableList.of(Person.class, Dog.class), new SessionFactoryFactory()) {
+                Arrays.asList(Person.class, Dog.class), new SessionFactoryFactory()) {
             @Override
             public PooledDataSourceFactory getDataSourceFactory(TestConfiguration configuration) {
                 return configuration.dataSource;
@@ -145,21 +147,21 @@ public class LazyLoadingTest {
         @Override
         public Response toResponse(ConstraintViolationException e) {
             return Response.status(Response.Status.BAD_REQUEST)
-                .entity(new ErrorMessage(Response.Status.BAD_REQUEST.getStatusCode(), e.getCause().getMessage()))
+                .entity(new ErrorMessage(Response.Status.BAD_REQUEST.getStatusCode(), Strings.nullToEmpty(e.getCause().getMessage())))
                 .build();
         }
     }
 
-    private DropwizardTestSupport dropwizardTestSupport;
+    private DropwizardTestSupport<?> dropwizardTestSupport = mock(DropwizardTestSupport.class);
     private Client client = new JerseyClientBuilder().build();
 
-    public void setup(Class<? extends Application<TestConfiguration>> applicationClass) {
+    public void setup(Class<? extends Application<TestConfiguration>> applicationClass) throws Exception {
         dropwizardTestSupport = new DropwizardTestSupport<>(applicationClass, ResourceHelpers.resourceFilePath("hibernate-integration-test.yaml"),
             ConfigOverride.config("dataSource.url", "jdbc:hsqldb:mem:DbTest" + System.nanoTime() + "?hsqldb.translate_dti_types=false"));
         dropwizardTestSupport.before();
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         dropwizardTestSupport.after();
         client.close();
@@ -181,7 +183,7 @@ public class LazyLoadingTest {
         assertThat(raf.getOwner())
             .isNotNull();
 
-        assertThat(raf.getOwner().getName())
+        assertThat(requireNonNull(raf.getOwner()).getName())
             .isEqualTo("Coda");
     }
 
